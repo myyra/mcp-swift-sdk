@@ -210,6 +210,11 @@ public actor Server {
     /// - Parameters:
     ///   - transport: The transport to use for the server
     ///   - initializeHook: An optional hook that runs when the client sends an initialize request
+    ///
+    /// Each accepted initialize request replaces the client information, capabilities,
+    /// and negotiated protocol version. The hook runs for every initialize request;
+    /// if it throws, the existing client state is preserved. Transports may enforce
+    /// their own session initialization restrictions.
     public func start(
         transport: any Transport,
         initializeHook: (@Sendable (Client.Info, Client.Capabilities) async throws -> Void)? = nil
@@ -931,10 +936,6 @@ public actor Server {
         withMethodHandler(Initialize.self) { [weak self] params in
             guard let self = self else {
                 throw MCPError.internalError("Server was deallocated")
-            }
-
-            guard await !self.isInitialized else {
-                throw MCPError.invalidRequest("Server is already initialized")
             }
 
             // Call initialization hook if registered

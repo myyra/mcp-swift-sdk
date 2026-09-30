@@ -287,6 +287,25 @@ struct StatefulHTTPServerTransportTests {
         await transport.disconnect()
     }
 
+    @Test("Repeated initialization of a stateful HTTP session is rejected")
+    func repeatedInitializationIsRejected() async throws {
+        let transport = makeStatefulTransport()
+        let sessionID = try await initializeSession(transport: transport)
+
+        let response = await transport.handleRequest(
+            makeStatefulPOSTRequest(body: makeInitializeBody(id: "2"), sessionID: sessionID))
+
+        #expect(response.statusCode == 400)
+        #expect(response.headers[HTTPHeaderName.sessionID] == sessionID)
+        if case .error(_, let error, _, _) = response {
+            #expect(error == .invalidRequest("Bad Request: Session already initialized"))
+        } else {
+            Issue.record("Expected JSON error response, got \(response)")
+        }
+
+        await transport.disconnect()
+    }
+
     @Test("Initialize with invalid session ID returns 500")
     func testInitializeWithInvalidSessionIDReturns500() async throws {
         // Control character \t is 0x09, outside valid range 0x21-0x7E
